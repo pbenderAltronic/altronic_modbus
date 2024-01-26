@@ -1,4 +1,4 @@
-module github.com/simonvetter/modbus
+module github.com/pbenderAltronic/altronic_modbus
 
 go 1.16
 
