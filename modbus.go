@@ -40,6 +40,9 @@ const (
 	fcReadFileRecord  uint8 = 0x14
 	fcWriteFileRecord uint8 = 0x15
 
+	// Ident
+	fcIdent uint8 = 0x11
+
 	// bootloader
 	fcBootloader uint8 = 0x7f
 
@@ -73,23 +76,6 @@ const (
 	ErrBadTransactionId        Error = "bad transaction id"
 	ErrUnknownProtocolId       Error = "unknown protocol identifier"
 	ErrUnexpectedParameters    Error = "unexpected parameters"
-
-	blCmdWake        uint8 = 255
-	blCmdRdFilespec  uint8 = 9
-	blCmdWrFilespec  uint8 = 1
-	blCmdEraseApp    uint8 = 2
-	blCmdRdApp       uint8 = 3
-	blCmdWrApp       uint8 = 4
-	blCmdValidateApp uint8 = 5
-	blCmdReset       uint8 = 6
-	blCmdBlInfo      uint8 = 7
-	blCmdBlankCheck  uint8 = 8
-
-	blErrWake   uint8 = 255
-	blErrCmd    uint8 = 254
-	blErrCrc    uint8 = 253
-	blErrOffset uint8 = 252
-	blErrData   uint8 = 251
 )
 
 // mapExceptionCodeToError turns a modbus exception code into a higher level Error object.
