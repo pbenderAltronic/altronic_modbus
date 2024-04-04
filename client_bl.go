@@ -15,6 +15,8 @@ const (
 	blCmdReset       uint8 = 6
 	blCmdBlInfo      uint8 = 7
 	blCmdBlankCheck  uint8 = 8
+	blCmdInitWrApp   uint8 = 10
+	blCmdFinWrApp    uint8 = 11
 
 	blErrWake   uint8 = 255
 	blErrCmd    uint8 = 254
@@ -211,7 +213,7 @@ func (mc *ModbusClient) BootloaderIdent() (err error) {
 
 }
 
-func (mc *ModbusClient) BootloaderWriteApp(blData []byte, blOffset uint16, blLength uint16) (err error) {
+func (mc *ModbusClient) BootloaderWriteApp(blData []byte, blOffset uint32, blLength uint8) (err error) {
 	var req *pdu
 	var res *pdu
 
@@ -225,11 +227,10 @@ func (mc *ModbusClient) BootloaderWriteApp(blData []byte, blOffset uint16, blLen
 	}
 	req.payload = append(req.payload, blCmdWrApp)
 
-	b := uint16ToBytes(BIG_ENDIAN, blOffset) // offset
-	req.payload = append(req.payload, b...)
+	b := uint32ToBytes(BIG_ENDIAN, HIGH_WORD_FIRST, blOffset) // offset
+	req.payload = append(req.payload, b[1], b[2], b[3])
 
-	b = uint16ToBytes(BIG_ENDIAN, blLength) // length
-	req.payload = append(req.payload, b...)
+	req.payload = append(req.payload, blLength)
 
 	req.payload = append(req.payload, blData...)
 
@@ -242,6 +243,55 @@ func (mc *ModbusClient) BootloaderWriteApp(blData []byte, blOffset uint16, blLen
 	// validate the response code
 	switch {
 	case res.functionCode == req.functionCode:
+		return
+
+	case res.functionCode == (req.functionCode | 0x80):
+		if len(res.payload) != 1 {
+			err = ErrProtocolError
+			return
+		}
+
+		err = mapExceptionCodeToError(res.payload[0])
+
+	default:
+		err = ErrProtocolError
+		mc.logger.Warningf("unexpected response code (%v)", res.functionCode)
+	}
+
+	return
+
+}
+
+func (mc *ModbusClient) BootloaderReadApp(blOffset uint32, blLength uint8) (blData []byte, err error) {
+	var req *pdu
+	var res *pdu
+
+	mc.lock.Lock()
+	defer mc.lock.Unlock()
+
+	// create and fill in the request object
+	req = &pdu{
+		unitId:       mc.unitId,
+		functionCode: fcBootloader,
+	}
+	req.payload = append(req.payload, blCmdRdApp)
+
+	b := uint32ToBytes(BIG_ENDIAN, HIGH_WORD_FIRST, blOffset) // offset
+	req.payload = append(req.payload, b[1], b[2], b[3])
+
+	req.payload = append(req.payload, blLength)
+
+	// run the request across the transport and wait for a response
+	res, err = mc.executeRequest(req)
+	if err != nil {
+		return
+	}
+
+	// validate the response code
+	switch {
+	case res.functionCode == req.functionCode:
+
+		blData = res.payload[1:]
 		return
 
 	case res.functionCode == (req.functionCode | 0x80):
